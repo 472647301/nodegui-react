@@ -1,0 +1,22 @@
+{
+  "name": "nodegui-react",
+  "version": "1.0.0",
+  "description": "nodegui-react",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/472647301/nodegui-react.git"
+  },
+  "keywords": [
+    "nodegui-react"
+  ],
+  "author": "472647301@qq.com",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/472647301/nodegui-react/issues"
+  },
+  "homepage": "https://github.com/472647301/nodegui-react#readme"
+}
