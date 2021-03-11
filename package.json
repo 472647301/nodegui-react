@@ -4,7 +4,9 @@
   "description": "nodegui-react",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "webpack --mode production",
+    "start": "webpack && qode ./dist/index.js",
+    "debug": "webpack && qode --inspect ./dist/index.js"
   },
   "repository": {
     "type": "git",
@@ -18,5 +20,21 @@
   "bugs": {
     "url": "https://github.com/472647301/nodegui-react/issues"
   },
-  "homepage": "https://github.com/472647301/nodegui-react#readme"
+  "homepage": "https://github.com/472647301/nodegui-react#readme",
+  "dependencies": {
+    "@nodegui/nodegui": "^0.30.1",
+    "@nodegui/react-nodegui": "^0.10.4",
+    "react": "^17.0.1"
+  },
+  "devDependencies": {
+    "@nodegui/packer": "^1.4.1",
+    "@types/node": "^14.14.31",
+    "clean-webpack-plugin": "^3.0.0",
+    "file-loader": "^6.2.0",
+    "native-addon-loader": "^2.0.1",
+    "ts-loader": "^8.0.17",
+    "typescript": "^4.2.2",
+    "webpack": "^5.24.2",
+    "webpack-cli": "^4.5.0"
+  }
 }
