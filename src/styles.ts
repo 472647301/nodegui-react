@@ -42,3 +42,6 @@ export const stop = `
   padding: 10px;
   border-radius: 5px;
 `;
+export const init = `
+  margin-left: 190px;
+`;
