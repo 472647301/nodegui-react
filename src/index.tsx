@@ -1,10 +1,16 @@
-import React, { useState } from "react";
-import { Renderer, Window, View } from "@nodegui/react-nodegui";
-import { Text, Button, CheckBox, LineEdit } from "@nodegui/react-nodegui";
+import React, { useRef, useState } from "react";
+import { Renderer, Window } from "@nodegui/react-nodegui";
+import { Text, Button, View } from "@nodegui/react-nodegui";
+import { CheckBox, LineEdit } from "@nodegui/react-nodegui";
+import { createDateWidget } from "./components/DateTime";
+import { Loading } from "./components/Loading";
+import { QWidget } from "@nodegui/nodegui";
 import * as styles from "./styles";
 import * as Utils from "./utils";
 
 const App = () => {
+  const startRef = useRef<QWidget>(null);
+  const stopRef = useRef<QWidget>(null);
   const [file, setFile] = useState<string>();
   const [script, setScript] = useState<string>();
   const [login, setLogin] = useState<string>();
@@ -25,28 +31,32 @@ const App = () => {
   };
 
   React.useEffect(() => {
-    Utils.fetchConfig().then((res) => {
-      if (res) setConfig(res);
-    });
+    // Utils.fetchConfig().then((res) => {
+    //   if (res) setConfig(res);
+    // });
     Utils.emitter.on("stop-success", () => {
       setStart(false);
     });
     Utils.emitter.on("start-success", () => {
       setStart(true);
     });
+    createDateWidget(startRef, Utils.startTimeChanged);
+    createDateWidget(stopRef, Utils.stopTimeChanged);
   }, []);
 
   if (!config) {
     return (
-      <Window minSize={{ width: 460, height: 560 }}>
-        <Text style={styles.init}>正在初始化...</Text>
+      <Window minSize={styles.size}>
+        <View style={styles.init}>
+          <Loading />
+        </View>
       </Window>
     );
   }
   return (
     <Window
-      maxSize={config.maxSize}
-      minSize={config.minSize}
+      maxSize={styles.size}
+      minSize={styles.size}
       windowTitle={config.windowTitle}
       style={styles.window}
     >
@@ -111,6 +121,15 @@ const App = () => {
             ))}
           </View>
         ))}
+        <Text style={styles.title}>定时启动/停止(可选)</Text>
+        <View style={`${styles.rows}margin-bottom: 10px;`}>
+          <Text>启动时间: </Text>
+          <View ref={startRef} />
+        </View>
+        <View style={`${styles.rows}margin-bottom: 10px;`}>
+          <Text>停止时间: </Text>
+          <View ref={stopRef} />
+        </View>
         <Text style={styles.title}>程序异常联系方式(可选)</Text>
         <View style={styles.rows}>
           <Text>QQ: </Text>

@@ -64,4 +64,12 @@ export const startApply = () => {
   emitter.emit("start-success");
 };
 
+/**
+ *
+ * @param text Format("yyyy-MM-dd hh:mm")
+ */
+export const startTimeChanged = (text: string) => {};
+
+export const stopTimeChanged = (text: string) => {};
+
 export type TextName = "username" | "password" | "qq";

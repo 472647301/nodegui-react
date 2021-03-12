@@ -43,5 +43,11 @@ export const stop = `
   border-radius: 5px;
 `;
 export const init = `
-  margin-left: 190px;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
 `;
+export const size = {
+  width: 460,
+  height: 600,
+};
