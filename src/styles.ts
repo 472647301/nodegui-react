@@ -48,6 +48,6 @@ export const init = `
   justify-content: center;
 `;
 export const size = {
-  width: 460,
-  height: 600,
+  width: 520,
+  height: 660,
 };

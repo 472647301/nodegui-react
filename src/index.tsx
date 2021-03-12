@@ -3,10 +3,13 @@ import { Renderer, Window } from "@nodegui/react-nodegui";
 import { Text, Button, View } from "@nodegui/react-nodegui";
 import { CheckBox, LineEdit } from "@nodegui/react-nodegui";
 import { createDateWidget } from "./components/DateTime";
-import { Loading } from "./components/Loading";
 import { QWidget } from "@nodegui/nodegui";
+import { html } from "./utils/html";
 import * as styles from "./styles";
 import * as Utils from "./utils";
+import * as Log4js from "log4js";
+import dayjs from "dayjs";
+import http from "http";
 
 const App = () => {
   const startRef = useRef<QWidget>(null);
@@ -15,7 +18,7 @@ const App = () => {
   const [script, setScript] = useState<string>();
   const [login, setLogin] = useState<string>();
   const [start, setStart] = useState<boolean>();
-  const [config, setConfig] = useState<IConfig>();
+  const [config, setConfig] = useState<IConfig>(defaultConfig);
   const onSelectFile = () => {
     const file = Utils.selectFile();
     if (!file) {
@@ -31,9 +34,9 @@ const App = () => {
   };
 
   React.useEffect(() => {
-    // Utils.fetchConfig().then((res) => {
-    //   if (res) setConfig(res);
-    // });
+    Utils.fetchConfig().then((res) => {
+      if (res) setConfig(res);
+    });
     Utils.emitter.on("stop-success", () => {
       setStart(false);
     });
@@ -44,15 +47,6 @@ const App = () => {
     createDateWidget(stopRef, Utils.stopTimeChanged);
   }, []);
 
-  if (!config) {
-    return (
-      <Window minSize={styles.size}>
-        <View style={styles.init}>
-          <Loading />
-        </View>
-      </Window>
-    );
-  }
   return (
     <Window
       maxSize={styles.size}
@@ -155,4 +149,45 @@ const App = () => {
   );
 };
 
-Renderer.render(<App />);
+const defaultConfig: IConfig = {
+  minSize: styles.size,
+  maxSize: styles.size,
+  windowTitle: "DN",
+  scripts: [],
+  loginTypes: [],
+  seeds: [],
+};
+
+const createServer = (ip: string) => {
+  const server = http.createServer((request, response) => {
+    response.statusCode = 200;
+    response.setHeader("content-type", "text/html");
+    response.write(html(ip));
+    response.end();
+  });
+
+  server.listen(8877, ip, () => {
+    Utils.debug(`Server started at http://${ip}:8877`);
+  });
+};
+
+const onInit = () => {
+  const ip = Utils.getIP();
+  const name = dayjs(Date.now()).format("YYYYMMDDHHmmss");
+  Log4js.configure({
+    appenders: {
+      app: { type: "dateFile", filename: `logs/${name}` },
+    },
+    categories: {
+      default: { appenders: ["app"], level: "all" },
+    },
+  });
+  if (!ip) {
+    return;
+  }
+  createServer(ip);
+};
+
+Renderer.render(<App />, {
+  onInit: onInit,
+});
