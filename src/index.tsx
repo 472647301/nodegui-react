@@ -4,11 +4,11 @@ import { Text, Button, View } from "@nodegui/react-nodegui";
 import { CheckBox, LineEdit } from "@nodegui/react-nodegui";
 import { createDateWidget } from "./components/DateTime";
 import { QWidget } from "@nodegui/nodegui";
+import { Logger } from "./utils/logger";
+import { Op } from "./utils/op.dll";
 import { html } from "./utils/html";
 import * as styles from "./styles";
 import * as Utils from "./utils";
-import * as Log4js from "log4js";
-import dayjs from "dayjs";
 import http from "http";
 
 const App = () => {
@@ -19,6 +19,7 @@ const App = () => {
   const [login, setLogin] = useState<string>();
   const [start, setStart] = useState<boolean>();
   const [config, setConfig] = useState<IConfig>(defaultConfig);
+  const [enabledStart, setEnabledStart] = useState<boolean>(true);
   const onSelectFile = () => {
     const file = Utils.selectFile();
     if (!file) {
@@ -42,10 +43,17 @@ const App = () => {
     });
     Utils.emitter.on("start-success", () => {
       setStart(true);
+      setEnabledStart(true);
     });
     createDateWidget(startRef, Utils.startTimeChanged);
     createDateWidget(stopRef, Utils.stopTimeChanged);
   }, []);
+
+  const startApply = () => {
+    if (Utils.startApply(script, login)) {
+      setEnabledStart(false);
+    }
+  };
 
   return (
     <Window
@@ -110,7 +118,7 @@ const App = () => {
               <CheckBox
                 text={item.name}
                 key={`${item.key}seed`}
-                on={{ clicked: (bool) => Utils.checkSeed(bool, item.key) }}
+                on={{ clicked: () => Utils.checkSeed(item.key) }}
               />
             ))}
           </View>
@@ -139,9 +147,10 @@ const App = () => {
           />
         ) : (
           <Button
-            on={{ clicked: Utils.startApply }}
+            on={{ clicked: startApply }}
             style={styles.start}
-            text={"启动"}
+            enabled={enabledStart}
+            text={enabledStart ? "启动" : "正在启动中..."}
           />
         )}
       </View>
@@ -167,21 +176,14 @@ const createServer = (ip: string) => {
   });
 
   server.listen(8877, ip, () => {
-    Utils.debug(`Server started at http://${ip}:8877`);
+    Logger.debug(`Server started at http://${ip}:8877`);
   });
 };
 
 const onInit = () => {
+  Op.init();
+  Logger.init();
   const ip = Utils.getIP();
-  const name = dayjs(Date.now()).format("YYYYMMDDHHmmss");
-  Log4js.configure({
-    appenders: {
-      app: { type: "dateFile", filename: `logs/${name}` },
-    },
-    categories: {
-      default: { appenders: ["app"], level: "all" },
-    },
-  });
   if (!ip) {
     return;
   }

@@ -4,12 +4,13 @@ import {
   QPushButton,
   ButtonRole,
 } from "@nodegui/nodegui";
+import { Login } from "../scripts/login";
 import { EventEmitter } from "events";
 import { decode } from "js-base64";
-import * as Log4js from "log4js";
 import * as path from "path";
 import WebSocket from "ws";
 import axios from "axios";
+import dayjs from "dayjs";
 import os from "os";
 
 export const emitter = new EventEmitter();
@@ -26,6 +27,8 @@ export const selectFile = () => {
     showMessage("请选择exe文件程序");
     return;
   }
+  Login.exeDir = path.dirname(file);
+  Login.exeName = path.basename(file);
   return path.basename(file);
 };
 
@@ -52,28 +55,49 @@ export const fetchConfig = async () => {
 };
 
 export const textChanged = (name: TextName, value: string) => {
-  console.log("-----", name, value);
+  if (name === "username") {
+    Login.username = value;
+  }
+  if (name === "password") {
+    Login.password = value;
+  }
+  if (name === "qq") {
+    Login.qq = value;
+  }
 };
 
-export const checkSeed = (bool: boolean, key: string) => {
-  console.log("-----", bool, key);
+export const checkSeed = (key: string) => {
+  const index = Login.seedKeys.indexOf(key);
+  if (index !== -1) {
+    Login.seedKeys.splice(index, 1);
+  } else {
+    Login.seedKeys.push(key);
+  }
+};
+
+export const startApply = (scriptKey?: string, loginKey?: string) => {
+  Login.scriptKey = scriptKey || "";
+  Login.loginKey = loginKey || "";
+  return Login.init();
 };
 
 export const stopApply = () => {
-  emitter.emit("stop-success");
-};
-
-export const startApply = () => {
-  emitter.emit("start-success");
+  Login.stop();
 };
 
 /**
  *
  * @param text Format("yyyy-MM-dd hh:mm")
  */
-export const startTimeChanged = (text: string) => {};
+export const startTimeChanged = (text: string) => {
+  const val = dayjs(text).valueOf();
+  Login.startTime = val;
+};
 
-export const stopTimeChanged = (text: string) => {};
+export const stopTimeChanged = (text: string) => {
+  const val = dayjs(text).valueOf();
+  Login.stopTime = val;
+};
 
 export const getIP = () => {
   const interfaces = os.networkInterfaces(); //服务器本机地址
@@ -97,12 +121,6 @@ export const getIP = () => {
   return IPAdress;
 };
 
-export const logger = Log4js.getLogger("DN");
-
-export const debug = (message: any, ...args: any[]) => {
-  logger.debug(message, ...args);
-};
-
 export const wss = new WebSocket.Server({ port: 8876 });
 
 wss.on("connection", function connection(ws) {
@@ -111,9 +129,6 @@ wss.on("connection", function connection(ws) {
   });
 
   ws.send("something");
-  setInterval(() => {
-    ws.send(Date.now().toString());
-  }, 3000);
 });
 
 export type TextName = "username" | "password" | "qq";
