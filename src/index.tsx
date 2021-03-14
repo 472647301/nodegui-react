@@ -39,6 +39,7 @@ const App = () => {
       if (res) setConfig(res);
     });
     Utils.emitter.on("stop-success", () => {
+      console.log("stop-success");
       setStart(false);
     });
     Utils.emitter.on("start-success", () => {
@@ -50,6 +51,10 @@ const App = () => {
   }, []);
 
   const startApply = () => {
+    if (start) {
+      Utils.stopApply();
+      return;
+    }
     if (Utils.startApply(script, login)) {
       setEnabledStart(false);
     }
@@ -139,20 +144,12 @@ const App = () => {
             on={{ textChanged: (val) => Utils.textChanged("qq", val) }}
           />
         </View>
-        {start ? (
-          <Button
-            on={{ clicked: Utils.stopApply }}
-            style={styles.stop}
-            text={"停止"}
-          />
-        ) : (
-          <Button
-            on={{ clicked: startApply }}
-            style={styles.start}
-            enabled={enabledStart}
-            text={enabledStart ? "启动" : "正在启动中..."}
-          />
-        )}
+        <Button
+          on={{ clicked: startApply }}
+          style={start ? styles.stop : styles.start}
+          enabled={enabledStart}
+          text={start ? "停止" : enabledStart ? "启动" : "正在启动中..."}
+        />
       </View>
     </Window>
   );

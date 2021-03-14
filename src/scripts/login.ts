@@ -1,12 +1,22 @@
 import shell from "shelljs";
 import { execFile } from "child_process";
 import { emitter, showMessage } from "../utils";
+import { getKeyCode } from "../utils/keyboard";
 import { Op } from "../utils/op.dll";
 import path from "path";
 import fs from "fs";
 
 const captureDir = path.resolve(__dirname, "../capture");
-
+type Timeout = {
+  [key: string]: NodeJS.Timeout | null;
+};
+type WindowInfo = {
+  hwnd?: number;
+  /**
+   * [width,height]
+   */
+  size?: Array<number>;
+};
 export class Login {
   public static exeDir = "";
   public static exeName = "";
@@ -18,12 +28,12 @@ export class Login {
   public static startTime = 0;
   public static stopTime = 0;
   public static qq = "";
-  public static startTimeout: NodeJS.Timeout | null = null;
-  public static stopTimeout: NodeJS.Timeout | null = null;
-  public static findProcessTimer: NodeJS.Timeout | null = null;
-  public static findPicTimer: NodeJS.Timeout | null = null;
-  public static findTitleTimer: NodeJS.Timeout | null = null;
-  public static clickStart?: { x: number; y: number };
+  public static timeout: Timeout = {};
+  /**
+   * 是否已启动
+   */
+  public static isLauncher = false;
+  public static windowInfo: WindowInfo = {};
 
   public static init() {
     if (!this.exeDir || !this.exeName) {
@@ -64,13 +74,13 @@ export class Login {
     if (!this.startTime) {
       this.start();
     } else {
-      this.startTimeout = setTimeout(
+      this.timeout["start"] = setTimeout(
         () => this.start(),
         this.startTime - Date.now()
       );
     }
     if (this.stopTime) {
-      this.stopTimeout = setTimeout(
+      this.timeout["stop"] = setTimeout(
         () => this.stop(),
         this.stopTime - Date.now()
       );
@@ -79,39 +89,150 @@ export class Login {
   }
 
   public static start() {
+    if (this.timeout["start"]) {
+      clearTimeout(this.timeout["start"]);
+      delete this.timeout["start"];
+    }
     try {
       shell.cd(this.exeDir);
+      // 启动应用
       const exe = execFile(`./${this.exeName}`);
-      exe.on("close", (code) => {
-        if (!this.clickStart) {
+      exe.on("close", () => {
+        if (!this.isLauncher) {
           return;
         }
-        this.enterUsername();
+        this.bindWindow();
       });
-      this.findWindowByProcess();
+      this.findLauncherWindow();
     } catch (e) {
-      console.log(e);
       showMessage(JSON.stringify(e));
     }
   }
 
   public static stop() {
+    if (this.timeout["stop"]) {
+      clearTimeout(this.timeout["stop"]);
+      delete this.timeout["stop"];
+    }
+    if (this.windowInfo.hwnd) {
+      Op.unBindWindow();
+    }
     emitter.emit("stop-success");
   }
 
-  public static enterUsername() {
-    this.findTitleTimer = setInterval(() => {
-      if (!this.findTitleTimer) {
+  /**
+   * 绑定窗口
+   */
+  public static bindWindow() {
+    this.timeout["bindWindow"] = setInterval(() => {
+      if (!this.timeout["bindWindow"]) {
         return;
       }
-      const hwnd = Op.findWindowEx();
-      console.log("---findWindow-----", hwnd);
+      const hwnd = Op.findWindowByProcess("DragonNest.exe");
+      if (!hwnd) {
+        return;
+      }
+      const title = Op.getWindowTitle(hwnd);
+      if (!title) {
+        return;
+      }
+      if (title === "龙之谷 x86") {
+        Op.bindWindow(hwnd, "normal", "normal", "normal", 0);
+        const size = Op.getClientSize(hwnd);
+        this.windowInfo.hwnd = hwnd;
+        this.windowInfo.size = size;
+        clearInterval(this.timeout["bindWindow"]);
+        delete this.timeout["bindWindow"];
+        this.findLoginWrap();
+      }
     }, 1000);
   }
 
-  public static findWindowByProcess() {
-    this.findProcessTimer = setInterval(() => {
-      if (!this.findProcessTimer) {
+  /**
+   * 查找登录框
+   */
+  public static findLoginWrap() {
+    if (!this.windowInfo.size) {
+      return;
+    }
+    const { size } = this.windowInfo;
+    const x1 = parseInt((size[0] / 2).toFixed());
+    const y1 = parseInt((size[1] / 3).toFixed());
+    const pic = path.resolve(__dirname, "../images/login.png");
+    this.timeout["loginWrap"] = setInterval(() => {
+      if (!this.timeout["loginWrap"]) {
+        return;
+      }
+      Op.keyPress(27); // ESC
+      const login = Op.findPic(x1, y1, size[0], size[1], pic, "000000", 1, 2);
+      if (login.length !== 3) {
+        return;
+      }
+      clearInterval(this.timeout["loginWrap"]);
+      delete this.timeout["loginWrap"];
+      this.submitLogin(login[0], login[1]);
+    }, 3000);
+  }
+
+  /**
+   * 提交登录
+   */
+  public static async submitLogin(xPosition: number, yPosition: number) {
+    // 按钮算80*30一个
+    let x = 0;
+    let y = yPosition + 35;
+    if (this.loginKey === "1") {
+      // 扫码
+      x = xPosition + 80;
+    } else if (this.loginKey === "2") {
+      x = xPosition;
+    } else {
+      x = xPosition - 80;
+    }
+    Op.moveTo(x, y);
+    await this.delay();
+    Op.leftClick();
+    await this.delay();
+    Op.moveTo(xPosition, y + 55);
+    await this.delay();
+    Op.leftClick();
+    Op.keyPress(16); // 切换英文输入法
+    const keys = this.username.split("");
+    for (let i = 0; i < keys.length; i++) {
+      const arr = getKeyCode(keys[i]);
+      arr.forEach((code) => {
+        Op.keyPress(code);
+      });
+    }
+    if (!this.windowInfo.size) {
+      return;
+    }
+    const { size } = this.windowInfo;
+    const x1 = parseInt((size[0] / 2).toFixed());
+    const y1 = parseInt((size[1] / 3).toFixed());
+    const pic = path.resolve(__dirname, "../images/submit.png");
+    this.timeout["submitLogin"] = setInterval(async () => {
+      if (!this.timeout["submitLogin"]) {
+        return;
+      }
+      const submit = Op.findPic(x1, y1, size[0], size[1], pic, "000000", 1, 2);
+      if (submit.length !== 3) {
+        return;
+      }
+      clearInterval(this.timeout["submitLogin"]);
+      delete this.timeout["submitLogin"];
+      Op.moveTo(submit[0] + 20, submit[1] + 30);
+      await this.delay();
+      Op.leftClick();
+    });
+  }
+
+  /**
+   * 查找启动窗口
+   */
+  public static findLauncherWindow() {
+    this.timeout["launcher"] = setInterval(() => {
+      if (!this.timeout["launcher"]) {
         return;
       }
       const hwnd = Op.findWindowByProcess(this.exeName);
@@ -124,40 +245,48 @@ export class Login {
       }
       if (title === "iDNLauncher") {
         emitter.emit("start-success");
-        clearInterval(this.findProcessTimer);
-        this.findProcessTimer = null;
-        this.clickStartGame(hwnd);
+        clearInterval(this.timeout["launcher"]);
+        delete this.timeout["launcher"];
+        this.clickLauncherGame(hwnd);
       }
     }, 1000);
   }
 
-  public static clickStartGame(hwnd: number) {
+  /**
+   * 点击启动游戏
+   */
+  public static clickLauncherGame(hwnd: number) {
     const size = Op.getClientRect(hwnd);
     if (size.length !== 4) {
       return;
     }
-    this.findPicTimer = setInterval(() => {
-      if (!this.findPicTimer) {
+    const x1 = size[0];
+    const y1 = size[1];
+    const x2 = size[2];
+    const y2 = size[3];
+    const pic = path.resolve(__dirname, "../images/launcher.png");
+    this.timeout["launcherGame"] = setInterval(async () => {
+      if (!this.timeout["launcherGame"]) {
         return;
       }
-      const xy = Op.findPic(
-        size[0],
-        size[1],
-        size[2],
-        size[3],
-        `${path.resolve(__dirname, "../images/startgame.png")}`,
-        "000000",
-        1,
-        3
-      );
-      if (xy.length !== 3) {
+      const launcher = Op.findPic(x1, y1, x2, y2, pic, "000000", 1, 3);
+      if (launcher.length !== 3) {
         return;
       }
-      clearInterval(this.findPicTimer);
-      this.findPicTimer = null;
-      this.clickStart = { x: xy[0], y: xy[1] };
-      Op.moveTo(xy[0], xy[1]);
+      const x = launcher[0] + 10;
+      const y = launcher[1] + 5;
+      Op.moveTo(x, y);
+      await this.delay();
       Op.leftClick();
+      this.isLauncher = true;
+      clearInterval(this.timeout["launcherGame"]);
+      delete this.timeout["launcherGame"];
     }, 1000);
+  }
+
+  public static delay(n: number = 300) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, n);
+    });
   }
 }

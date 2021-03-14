@@ -312,7 +312,7 @@ export class Op {
     let x2 = new winax.Variant(-1, "byref");
     let y2 = new winax.Variant(-1, "byref");
     const rect = this.op.GetClientRect(hwnd, x1, y1, x2, y2);
-    return rect ? [x1, y1, x2, y2] : [];
+    return rect ? [Number(x1), Number(y1), Number(x2), Number(y2)] : [];
   }
 
   /**
@@ -488,6 +488,6 @@ export class Op {
   public static getScreenSize(): Array<number> {
     const w = this.op.GetScreenWidth();
     const h = this.op.GetScreenHeight();
-    return [w, h];
+    return [Number(w), Number(h)];
   }
 }

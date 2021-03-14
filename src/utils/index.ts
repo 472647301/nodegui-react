@@ -82,6 +82,7 @@ export const startApply = (scriptKey?: string, loginKey?: string) => {
 };
 
 export const stopApply = () => {
+  console.log("--stop---");
   Login.stop();
 };
 
