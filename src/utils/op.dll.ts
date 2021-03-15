@@ -3,6 +3,7 @@ import { execSync } from "child_process";
 import { showMessage } from ".";
 
 const winax = require("winax");
+// const winax = {} as any;
 
 export type DisplayType = "normal" | "gdi" | "gdi2" | "dx" | "dx2" | "dx3";
 export type MouseType =

@@ -1,6 +1,6 @@
 import shell from "shelljs";
 import { execFile } from "child_process";
-import { emitter, showMessage } from "../utils";
+import { cookie, emitter, showMessage } from "../utils";
 import { getKeyCode } from "../utils/keyboard";
 import { Op } from "../utils/op.dll";
 import path from "path";
@@ -48,7 +48,7 @@ export class Login {
       showMessage("请选择登录方式");
       return;
     }
-    if (this.loginKey !== "2" && !this.username) {
+    if (this.loginKey !== "1" && !this.username) {
       showMessage("请输入账号");
       return;
     }
@@ -71,6 +71,7 @@ export class Login {
     if (!fs.existsSync(captureDir)) {
       fs.mkdirSync(captureDir);
     }
+    cookie.writeFile();
     if (!this.startTime) {
       this.start();
     } else {

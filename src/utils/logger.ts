@@ -1,6 +1,7 @@
 import fs from "fs";
 import dayjs from "dayjs";
 import path from "path";
+import { wss } from ".";
 
 export class Logger {
   public static path = "";
@@ -15,15 +16,18 @@ export class Logger {
   }
 
   public static debug(message: string) {
-    fs.writeFile(
-      this.path,
-      message,
-      {
-        flag: "a",
-        encoding: "utf-8",
-        mode: "0644",
-      },
-      console.log
-    );
+    const now = dayjs(Date.now()).format("YYYY-MM-DD HH:mm:ss");
+    const msg = `[${now}] ${message}`;
+    const options: fs.WriteFileOptions = {
+      flag: "a",
+      encoding: "utf-8",
+      mode: "0644",
+    };
+    fs.writeFile(this.path, msg, options, console.log);
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: "log", data: msg }));
+      }
+    });
   }
 }

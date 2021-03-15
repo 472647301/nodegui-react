@@ -6,12 +6,13 @@ import {
 } from "@nodegui/nodegui";
 import { Login } from "../scripts/login";
 import { EventEmitter } from "events";
-import { decode } from "js-base64";
+import { decode, encode } from "js-base64";
 import * as path from "path";
 import WebSocket from "ws";
 import axios from "axios";
 import dayjs from "dayjs";
 import os from "os";
+import fs from "fs";
 
 export const emitter = new EventEmitter();
 
@@ -23,13 +24,15 @@ export const selectFile = () => {
     return;
   }
   const file = value[0];
-  if (path.extname(file) !== ".exe") {
-    showMessage("请选择exe文件程序");
-    return;
-  }
+  // if (path.extname(file) !== ".exe") {
+  //   showMessage("请选择exe文件程序");
+  //   return;
+  // }
   Login.exeDir = path.dirname(file);
   Login.exeName = path.basename(file);
-  return path.basename(file);
+  cookie.set("exeDir", path.dirname(file));
+  cookie.set("exeName", path.basename(file));
+  return file;
 };
 
 export const showMessage = (text: string) => {
@@ -57,12 +60,15 @@ export const fetchConfig = async () => {
 export const textChanged = (name: TextName, value: string) => {
   if (name === "username") {
     Login.username = value;
+    cookie.set("username", value);
   }
   if (name === "password") {
     Login.password = value;
+    cookie.set("password", value);
   }
   if (name === "qq") {
     Login.qq = value;
+    cookie.set("qq", value);
   }
 };
 
@@ -78,11 +84,12 @@ export const checkSeed = (key: string) => {
 export const startApply = (scriptKey?: string, loginKey?: string) => {
   Login.scriptKey = scriptKey || "";
   Login.loginKey = loginKey || "";
+  cookie.set("scriptKey", Login.scriptKey);
+  cookie.set("loginKey", Login.loginKey);
   return Login.init();
 };
 
 export const stopApply = () => {
-  console.log("--stop---");
   Login.stop();
 };
 
@@ -128,8 +135,50 @@ wss.on("connection", function connection(ws) {
   ws.on("message", function incoming(message) {
     console.log("received: %s", message);
   });
-
-  ws.send("something");
 });
 
+export const cookie: Cookie = {
+  data: {},
+  path: path.resolve(__dirname, "../cookies.txt"),
+  get: function (key: string) {
+    return this.data[key];
+  },
+  set: function (key: string, text: string) {
+    this.data[key] = text;
+    console.log(JSON.stringify(this.data));
+  },
+  writeFile: function () {
+    const content = encode(JSON.stringify(this.data));
+    console.log("---", content);
+    fs.writeFile(this.path, content, (err) => {
+      console.log(err);
+    });
+  },
+  init: function () {
+    if (!fs.existsSync(this.path)) {
+      return this.data;
+    }
+    const enData = fs.readFileSync(this.path, "utf8");
+    const data = enData ? decode(enData) : "";
+    const init = data ? JSON.parse(data) : {};
+    Login.exeDir = init.exeDir || "";
+    Login.exeName = init.exeName || "";
+    Login.scriptKey = init.scriptKey || "";
+    Login.loginKey = init.loginKey || "";
+    Login.username = init.username || "";
+    Login.password = init.password || "";
+    Login.qq = init.qq || "";
+    this.data = Object.assign(this.data, init);
+    return init;
+  },
+};
+
+type Cookie = {
+  data: { [key: string]: string };
+  get: (key: string) => string;
+  set: (key: string, text: string) => void;
+  init: () => Cookie["data"];
+  path: string;
+  writeFile: () => void;
+};
 export type TextName = "username" | "password" | "qq";

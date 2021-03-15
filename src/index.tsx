@@ -10,13 +10,16 @@ import { html } from "./utils/html";
 import * as styles from "./styles";
 import * as Utils from "./utils";
 import http from "http";
+import os from "os";
+
+const init = Utils.cookie.init();
 
 const App = () => {
   const startRef = useRef<QWidget>(null);
   const stopRef = useRef<QWidget>(null);
-  const [file, setFile] = useState<string>();
-  const [script, setScript] = useState<string>();
-  const [login, setLogin] = useState<string>();
+  const [file, setFile] = useState<string>(init?.file);
+  const [script, setScript] = useState<string>(init?.script);
+  const [login, setLogin] = useState<string>(init?.login);
   const [start, setStart] = useState<boolean>();
   const [config, setConfig] = useState<IConfig>(defaultConfig);
   const [enabledStart, setEnabledStart] = useState<boolean>(true);
@@ -26,12 +29,15 @@ const App = () => {
       return;
     }
     setFile(file);
+    Utils.cookie.set("file", file);
   };
   const onCheckScript = (bool: boolean, key: string) => {
     setScript(bool ? key : "");
+    Utils.cookie.set("script", bool ? key : "");
   };
   const onCheckLogin = (bool: boolean, key: string) => {
     setLogin(bool ? key : "");
+    Utils.cookie.set("login", bool ? key : "");
   };
 
   React.useEffect(() => {
@@ -39,7 +45,6 @@ const App = () => {
       if (res) setConfig(res);
     });
     Utils.emitter.on("stop-success", () => {
-      console.log("stop-success");
       setStart(false);
     });
     Utils.emitter.on("start-success", () => {
@@ -66,6 +71,7 @@ const App = () => {
       minSize={styles.size}
       windowTitle={config.windowTitle}
       style={styles.window}
+      on={{ Close: Utils.stopApply }}
     >
       <View style={styles.wrapper}>
         <Text style={styles.title}>启动程序</Text>
@@ -107,16 +113,16 @@ const App = () => {
         <View style={`${styles.rows}margin-bottom: 10px;`}>
           <Text>账号: </Text>
           <LineEdit
+            text={init?.username}
             on={{ textChanged: (val) => Utils.textChanged("username", val) }}
           />
-        </View>
-        <View style={`${styles.rows}margin-bottom: 10px;`}>
-          <Text>密码(可选): </Text>
+          <Text style="margin-left: 10px;">密码(可选): </Text>
           <LineEdit
+            text={init?.password}
             on={{ textChanged: (val) => Utils.textChanged("password", val) }}
           />
         </View>
-        <Text style={styles.title}>农场种子(可多选)</Text>
+        <Text style={styles.title}>农场种子(可多选或不选)</Text>
         {config.seeds.map((e, i) => (
           <View key={`${i}view`} style={styles.rows}>
             {e.map((item) => (
@@ -132,17 +138,19 @@ const App = () => {
         <View style={`${styles.rows}margin-bottom: 10px;`}>
           <Text>启动时间: </Text>
           <View ref={startRef} />
-        </View>
-        <View style={`${styles.rows}margin-bottom: 10px;`}>
-          <Text>停止时间: </Text>
+          <Text style="margin-left: 10px;">停止时间: </Text>
           <View ref={stopRef} />
         </View>
         <Text style={styles.title}>程序异常联系方式(可选)</Text>
         <View style={styles.rows}>
           <Text>QQ: </Text>
           <LineEdit
+            text={init?.qq}
             on={{ textChanged: (val) => Utils.textChanged("qq", val) }}
           />
+          <Text style="margin-left: 10px;">
+            实时日志: {`http://${Utils.getIP()}:8877`}
+          </Text>
         </View>
         <Button
           on={{ clicked: startApply }}
@@ -178,7 +186,9 @@ const createServer = (ip: string) => {
 };
 
 const onInit = () => {
-  Op.init();
+  if (os.platform() !== "darwin") {
+    Op.init();
+  }
   Logger.init();
   const ip = Utils.getIP();
   if (!ip) {
