@@ -5,6 +5,7 @@ import { getKeyCode } from "../utils/keyboard";
 import { Op } from "../utils/op.dll";
 import path from "path";
 import fs from "fs";
+import { Logger } from "../utils/logger";
 
 const captureDir = path.resolve(__dirname, "../capture");
 type Timeout = {
@@ -94,6 +95,7 @@ export class Login {
       clearTimeout(this.timeout["start"]);
       delete this.timeout["start"];
     }
+    Logger.debug("开始运行启动程序");
     try {
       shell.cd(this.exeDir);
       // 启动应用
@@ -106,6 +108,7 @@ export class Login {
       });
       this.findLauncherWindow();
     } catch (e) {
+      Logger.debug("运行启动程序失败");
       showMessage(JSON.stringify(e));
     }
   }
@@ -126,6 +129,7 @@ export class Login {
    */
   public static bindWindow() {
     this.timeout["bindWindow"] = setInterval(() => {
+      Logger.debug("正在查找主程序窗口...");
       if (!this.timeout["bindWindow"]) {
         return;
       }
@@ -139,6 +143,7 @@ export class Login {
       }
       if (title === "龙之谷 x86") {
         Op.bindWindow(hwnd, "normal", "normal", "normal", 0);
+        Logger.debug("查找主程序窗口成功");
         const size = Op.getClientSize(hwnd);
         this.windowInfo.hwnd = hwnd;
         this.windowInfo.size = size;
@@ -161,6 +166,7 @@ export class Login {
     const y1 = parseInt((size[1] / 3).toFixed());
     const pic = path.resolve(__dirname, "../images/login.png");
     this.timeout["loginWrap"] = setInterval(() => {
+      Logger.debug("正在查找登录界面...");
       if (!this.timeout["loginWrap"]) {
         return;
       }
@@ -171,6 +177,7 @@ export class Login {
       }
       clearInterval(this.timeout["loginWrap"]);
       delete this.timeout["loginWrap"];
+      Logger.debug("查找登录界面成功");
       this.submitLogin(login[0], login[1]);
     }, 3000);
   }
@@ -185,7 +192,8 @@ export class Login {
     if (this.loginKey === "1") {
       // 扫码
       x = xPosition + 80;
-    } else if (this.loginKey === "2") {
+    }
+    if (this.loginKey === "2") {
       x = xPosition;
     } else {
       x = xPosition - 80;
@@ -193,17 +201,41 @@ export class Login {
     Op.moveTo(x, y);
     await this.delay();
     Op.leftClick();
+    if (this.loginKey === "1") {
+      Logger.debug("当前登录方式为(扫码)");
+      this.findServerList();
+      return;
+    }
+    if (this.loginKey === "2") {
+      Logger.debug("当前登录方式为(一键)");
+    } else {
+      Logger.debug("当前登录方式为(账号密码)");
+    }
     await this.delay();
     Op.moveTo(xPosition, y + 55);
     await this.delay();
     Op.leftClick();
     Op.keyPress(16); // 切换英文输入法
     const keys = this.username.split("");
+    Logger.debug("正在输入账号:" + this.username);
     for (let i = 0; i < keys.length; i++) {
       const arr = getKeyCode(keys[i]);
       arr.forEach((code) => {
         Op.keyPress(code);
       });
+    }
+    if (this.loginKey === "3") {
+      Op.moveTo(xPosition, y + 110);
+      await this.delay();
+      Op.leftClick();
+      const pws = this.password.split("");
+      Logger.debug("正在输入密码:" + this.password);
+      for (let i = 0; i < pws.length; i++) {
+        const arr = getKeyCode(pws[i]);
+        arr.forEach((code) => {
+          Op.keyPress(code);
+        });
+      }
     }
     if (!this.windowInfo.size) {
       return;
@@ -213,6 +245,7 @@ export class Login {
     const y1 = parseInt((size[1] / 3).toFixed());
     const pic = path.resolve(__dirname, "../images/submit.png");
     this.timeout["submitLogin"] = setInterval(async () => {
+      Logger.debug("正在查找登录按钮...");
       if (!this.timeout["submitLogin"]) {
         return;
       }
@@ -225,7 +258,38 @@ export class Login {
       Op.moveTo(submit[0] + 20, submit[1] + 30);
       await this.delay();
       Op.leftClick();
+      Logger.debug("查找登录按钮成功");
+      this.findServerList();
     });
+  }
+
+  public static findServerList() {
+    if (!this.windowInfo.size) {
+      return;
+    }
+    const { size } = this.windowInfo;
+    const x1 = parseInt((size[0] / 2).toFixed());
+    const y1 = parseInt((size[1] / 2).toFixed());
+    const pic = path.resolve(__dirname, "../images/server.png");
+    this.timeout["serverList"] = setInterval(async () => {
+      Logger.debug("正在查找登录结果...");
+      if (!this.timeout["serverList"]) {
+        return;
+      }
+      const submit = Op.findPic(x1, y1, size[0], size[1], pic, "000000", 1, 2);
+      if (submit.length !== 3) {
+        return;
+      }
+      clearInterval(this.timeout["serverList"]);
+      delete this.timeout["serverList"];
+      Op.keyDown(13); // Enter
+      Logger.debug("查找登录结果成功");
+      this.findGameRole();
+    });
+  }
+
+  public static findGameRole() {
+    Logger.debug("正在查找游戏角色...");
   }
 
   /**
@@ -233,6 +297,7 @@ export class Login {
    */
   public static findLauncherWindow() {
     this.timeout["launcher"] = setInterval(() => {
+      Logger.debug("正在查找启动窗口...");
       if (!this.timeout["launcher"]) {
         return;
       }
@@ -246,6 +311,7 @@ export class Login {
       }
       if (title === "iDNLauncher") {
         emitter.emit("start-success");
+        Logger.debug("查找启动窗口成功");
         clearInterval(this.timeout["launcher"]);
         delete this.timeout["launcher"];
         this.clickLauncherGame(hwnd);
@@ -267,6 +333,7 @@ export class Login {
     const y2 = size[3];
     const pic = path.resolve(__dirname, "../images/launcher.png");
     this.timeout["launcherGame"] = setInterval(async () => {
+      Logger.debug("正在查找开始游戏按钮...");
       if (!this.timeout["launcherGame"]) {
         return;
       }
@@ -277,9 +344,11 @@ export class Login {
       const x = launcher[0] + 10;
       const y = launcher[1] + 5;
       Op.moveTo(x, y);
+      Logger.debug("查找开始游戏按钮成功");
       await this.delay();
       Op.leftClick();
       this.isLauncher = true;
+      Logger.debug("已点击开始游戏按钮");
       clearInterval(this.timeout["launcherGame"]);
       delete this.timeout["launcherGame"];
     }, 1000);
