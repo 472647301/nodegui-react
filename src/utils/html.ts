@@ -24,3 +24,14 @@ export const html = (ip: string) => {
 </html>
   `;
 };
+// fs.readFile(
+//   path.resolve(__dirname, "../index.html"),
+//   "utf-8",
+//   function (err, data) {
+//     if (err) {
+//       console.log("index.html loading is failed :" + err);
+//     } else {
+//       response.end(data);
+//     }
+//   }
+// );
